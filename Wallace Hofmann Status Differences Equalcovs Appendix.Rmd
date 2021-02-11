@@ -1,0 +1,1072 @@
+---
+title: "Wallace Hofmann Status Differences Equalcovs Appendix"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#PACKAGES
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(plyr)
+library(stringr)
+library(rmarkdown)
+library(knitr)
+library(utils)
+library(EnvStats)
+library(gridExtra)
+library(factoextra)
+library(GGally)
+library(reshape2)
+library(ggdendro)
+library(pvclust)
+library(RColorBrewer)
+library(viridis)
+library(glmmTMB)
+library(gplots)
+library(effsize)
+library(ISLR)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(ggfortify)
+library(car)
+library(broom)
+library(jtools)
+library(kableExtra)
+library(AICcmodavg)
+library(MESS)
+library(glue)
+library(glmulti)
+library(Hmisc)
+library(pheatmap)
+library(corrr)
+library(equalCovs)
+library(lavaan)
+library(correlation)
+#install link:https://github.com/kellyjwallace/cowlogdata
+#install_github("kellyjwallace/cowlogdata")
+#remember to library(devtools first)
+library(cowlogdata)
+```
+
+#GET DATAFRAMES
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+socadata<-read.csv("/stor/work/Hofmann/projects/aburtoni_cognition_social_competence/Analysis scripts and excel sheets/status differences summer 2020/data/SOCA_master.csv")
+
+kp<-read.csv("/stor/work/Hofmann/projects/aburtoni_cognition_social_competence/Analysis scripts and excel sheets/status differences summer 2020/data/KP_master.csv")
+
+horm<-read.csv("/stor/work/Hofmann/projects/aburtoni_cognition_social_competence/Analysis scripts and excel sheets/status differences summer 2020/data/hormone_data_master_december_2019.csv")
+
+weight<-read.csv("/stor/work/Hofmann/projects/aburtoni_cognition_social_competence/Analysis scripts and excel sheets/master_data_sheets/weight_SL.csv")
+
+
+
+```
+#prespa get dataframe: (only  vids over 600)
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+
+spapath<-"/stor/work/Hofmann/projects/aburtoni_cognition_social_competence/Analysis scripts and excel sheets/status differences summer 2020/data/SPA_sheets/over_600/over_600_spa4"
+#clflag(spapath)
+cldata(spapath, "prespadata", "spazones", factor = FALSE)
+spalist<-list.files(spapath)
+prespadata<-prespadata[prespadata$file_name %in% spalist,]
+prespadata$fishID<-NA
+prespadata$sex<-NA
+i<-1
+for(i in 1:nrow(prespadata)){
+prespadata$fishID[i]<-strsplit(prespadata$file_name, "_")[[i]][1]
+prespadata$sex[i]<-strsplit(prespadata$file_name, "_")[[i]][3]
+}
+prespadata<-prespadata %>% filter(sex == "male")
+
+#########reward preference (corner + platform)
+prespadata<-prespadata%>% mutate(reward_preference = (rewarded_corner_prop + rewarded_platform_prop)/(rewarded_corner_prop + rewarded_platform_prop + unrewarded_corner_prop + unrewarded_platform_prop))
+
+##########decision speed (latency to enter either corner)
+prespadata$latency_to_enter_either_corner<-NA
+i<-1
+for(i in 1:nrow(prespadata)){
+shortest<- min(c(prespadata$rewarded_corner_first_entry_time[i], prespadata$unrewarded_corner_first_entry_time[i]), na.rm = TRUE)
+prespadata$latency_to_enter_either_corner[i]<-shortest}
+
+##########interaction latency (latency to enter either platform)
+
+prespadata$latency_to_enter_either_platform<-NA
+i<-1
+for(i in 1:nrow(prespadata)){
+shortest<- min(c(prespadata$rewarded_platform_first_entry_time[i], prespadata$unrewarded_platform_first_entry_time[i]), na.rm = TRUE)
+prespadata$latency_to_enter_either_platform[i]<-shortest}
+
+
+#########first choice rewarded or unrewarded (corner)
+prespadata$first_choice<-NA
+i<-1
+for(i in 1:nrow(prespadata)){
+  if(is.na(prespadata$latency_to_enter_either_corner[i]) == FALSE){
+    
+  if(is.na(prespadata$rewarded_corner_first_entry_time[i]) == FALSE){  
+  if(as.numeric(prespadata$latency_to_enter_either_corner[i]) == as.numeric(prespadata$rewarded_corner_first_entry_time[i])){
+  prespadata$first_choice[i]<-"rewarded"}}
+    
+  if(is.na(prespadata$unrewarded_corner_first_entry_time[i]) == FALSE){  
+  if(as.numeric(prespadata$latency_to_enter_either_corner[i]) == as.numeric(prespadata$unrewarded_corner_first_entry_time[i])){
+  prespadata$first_choice[i]<-"unrewarded"}}
+  }}
+
+#########eror correction speed
+prespadata$error_correction_speed<-NA
+i<-1
+for(i in 1:nrow(prespadata)){
+  if(is.na(prespadata$unrewarded_corner_first_entry_time[i]) == FALSE){
+  if(is.na(prespadata$rewarded_corner_first_entry_time[i]) == FALSE){
+  if(prespadata$unrewarded_corner_first_entry_time[i] < prespadata$rewarded_corner_first_entry_time[i]){
+  prespadata$error_correction_speed[i]<-(prespadata$rewarded_corner_first_entry_time[i] - prespadata$unrewarded_corner_first_entry_time[i])}}}}
+  
+#########prop on reward following solution TBD
+
+  
+
+```
+#postspa get dataframe: (only  vids over 600)
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+
+spapath<-"/stor/work/Hofmann/projects/aburtoni_cognition_social_competence/Analysis scripts and excel sheets/status differences summer 2020/data/SPA_sheets/over_600/over_600_spa8"
+cldata(spapath, "postspadata", "spazones", factor = FALSE)
+spalist<-list.files(spapath)
+postspadata<-postspadata[postspadata$file_name %in% spalist,]
+postspadata$fishID<-NA
+postspadata$sex<-NA
+i<-1
+for(i in 1:nrow(postspadata)){
+postspadata$fishID[i]<-strsplit(postspadata$file_name, "_")[[i]][1]
+postspadata$sex[i]<-strsplit(postspadata$file_name, "_")[[i]][3]
+}
+postspadata<-postspadata %>% filter(sex == "male")
+
+#########reward preference (corner + platform)
+postspadata<-postspadata%>% mutate(reward_preference = (rewarded_corner_prop + rewarded_platform_prop)/(rewarded_corner_prop + rewarded_platform_prop + unrewarded_corner_prop + unrewarded_platform_prop))
+
+##########decision speed (latency to enter either corner)
+postspadata$latency_to_enter_either_corner<-NA
+i<-1
+for(i in 1:nrow(postspadata)){
+shortest<- min(c(postspadata$rewarded_corner_first_entry_time[i], postspadata$unrewarded_corner_first_entry_time[i]), na.rm = TRUE)
+postspadata$latency_to_enter_either_corner[i]<-shortest}
+
+##########interaction latency (latency to enter either platform)
+
+postspadata$latency_to_enter_either_platform<-NA
+i<-1
+for(i in 1:nrow(postspadata)){
+shortest<- min(c(postspadata$rewarded_platform_first_entry_time[i], postspadata$unrewarded_platform_first_entry_time[i]), na.rm = TRUE)
+postspadata$latency_to_enter_either_platform[i]<-shortest}
+
+
+#########first choice rewarded or unrewarded (corner)
+postspadata$first_choice<-NA
+i<-1
+for(i in 1:nrow(postspadata)){
+  if(is.na(postspadata$latency_to_enter_either_corner[i]) == FALSE){
+    
+  if(is.na(postspadata$rewarded_corner_first_entry_time[i]) == FALSE){  
+  if(as.numeric(postspadata$latency_to_enter_either_corner[i]) == as.numeric(postspadata$rewarded_corner_first_entry_time[i])){
+  postspadata$first_choice[i]<-"rewarded"}}
+    
+  if(is.na(postspadata$unrewarded_corner_first_entry_time[i]) == FALSE){  
+  if(as.numeric(postspadata$latency_to_enter_either_corner[i]) == as.numeric(postspadata$unrewarded_corner_first_entry_time[i])){
+  postspadata$first_choice[i]<-"unrewarded"}}
+  }}
+
+#########eror correction speed
+postspadata$error_correction_speed<-NA
+i<-1
+for(i in 1:nrow(postspadata)){
+  if(is.na(postspadata$unrewarded_corner_first_entry_time[i]) == FALSE){
+  if(is.na(postspadata$rewarded_corner_first_entry_time[i]) == FALSE){
+  if(postspadata$unrewarded_corner_first_entry_time[i] < postspadata$rewarded_corner_first_entry_time[i]){
+  postspadata$error_correction_speed[i]<-(postspadata$rewarded_corner_first_entry_time[i] - postspadata$unrewarded_corner_first_entry_time[i])}}}}
+  
+#########prop on reward following solution TBD
+
+  
+
+```
+#prenor get dataframe: (only  vids over 600)
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+
+norpath<-"/stor/work/Hofmann/projects/aburtoni_cognition_social_competence/Analysis scripts and excel sheets/status differences summer 2020/data/NOR_sheets/over_600/over_600_nor1"
+clflag(norpath)
+cldata(norpath, "prenordata", "norzones", factor = FALSE)
+norlist<-list.files(norpath)
+prenordata<-prenordata[prenordata$file_name %in% norlist,]
+prenordata$fishID<-NA
+prenordata$sex<-NA
+i<-1
+for(i in 1:nrow(prenordata)){
+prenordata$fishID[i]<-strsplit(prenordata$file_name, "_")[[i]][1]
+prenordata$sex[i]<-strsplit(prenordata$file_name, "_")[[i]][3]
+}
+prenordata<-prenordata %>% filter(sex == "male")
+
+#########familiar preference (corner + interaction)
+prenordata<-prenordata%>% mutate(familiar_preference = (upper_familiar_corner_prop + lower_familiar_corner_prop + familiar_interaction_prop)/(upper_familiar_corner_prop + lower_familiar_corner_prop + familiar_interaction_prop + upper_novel_corner_prop + lower_novel_corner_prop + novel_interaction_prop))
+
+##########decision speed (latency to enter either corner)
+prenordata$latency_to_enter_either_corner<-NA
+i<-1
+for(i in 1:nrow(prenordata)){
+shortest<- min(c(prenordata$upper_familiar_corner_first_entry_time[i],prenordata$lower_familiar_corner_first_entry_time[i], prenordata$upper_novel_corner_first_entry_time[i], prenordata$lower_novel_corner_first_entry_time[i]), na.rm = TRUE)
+prenordata$latency_to_enter_either_corner[i]<-shortest}
+
+##########interaction latency (latency to enter either interaction)
+
+prenordata$latency_to_enter_either_interaction<-NA
+i<-1
+for(i in 1:nrow(prenordata)){
+shortest<- min(c(prenordata$familiar_interaction_first_entry_time[i], prenordata$novel_interaction_first_entry_time[i]), na.rm = TRUE)
+prenordata$latency_to_enter_either_interaction[i]<-shortest}
+
+
+#########first choice familiar or novel (corner)
+prenordata$first_choice<-NA
+i<-1
+for(i in 1:nrow(prenordata)){
+  if(is.na(prenordata$latency_to_enter_either_interaction[i]) == FALSE){
+    
+  if(is.na(prenordata$familiar_interaction_first_entry_time[i]) == FALSE){  
+  if(as.numeric(prenordata$latency_to_enter_either_interaction[i]) == as.numeric(prenordata$familiar_interaction_first_entry_time[i])){
+  prenordata$first_choice[i]<-"familiar"}}
+    
+  if(is.na(prenordata$novel_interaction_first_entry_time[i]) == FALSE){  
+  if(as.numeric(prenordata$latency_to_enter_either_interaction[i]) == as.numeric(prenordata$novel_interaction_first_entry_time[i])){
+  prenordata$first_choice[i]<-"novel"}}
+  }}
+
+#########eror correction speed
+prenordata$error_correction_speed<-NA
+i<-1
+for(i in 1:nrow(prenordata)){
+  if(is.na(prenordata$novel_interaction_first_entry_time[i]) == FALSE){
+  if(is.na(prenordata$familiar_interaction_first_entry_time[i]) == FALSE){
+  if(prenordata$novel_interaction_first_entry_time[i] < prenordata$familiar_interaction_first_entry_time[i]){
+  prenordata$error_correction_speed[i]<-(prenordata$familiar_interaction_first_entry_time[i] - prenordata$novel_interaction_first_entry_time[i])}}}}
+  
+########remove upper and lower corners for sums
+prenordata<-prenordata %>% mutate(sum_novel_prop = upper_novel_corner_prop + lower_novel_corner_prop+ novel_interaction_prop)
+prenordata<-prenordata %>% mutate(sum_familiar_prop = upper_familiar_corner_prop + lower_familiar_corner_prop +familiar_interaction_prop)
+prenordata<-prenordata %>% mutate(sum_novel_entries = upper_novel_corner_entries + lower_novel_corner_entries + novel_interaction_entries)
+prenordata<-prenordata %>% mutate(sum_familiar_entries = upper_familiar_corner_entries + lower_familiar_corner_entries + familiar_interaction_entries) 
+
+
+```
+#postnor get dataframe: (only  vids over 600)
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+
+norpath<-"/stor/work/Hofmann/projects/aburtoni_cognition_social_competence/Analysis scripts and excel sheets/status differences summer 2020/data/NOR_sheets/over_600/over_600_nor2"
+clflag(norpath)
+cldata(norpath, "postnordata", "norzones", factor = FALSE)
+norlist<-list.files(norpath)
+postnordata<-postnordata[postnordata$file_name %in% norlist,]
+postnordata$fishID<-NA
+postnordata$sex<-NA
+i<-1
+for(i in 1:nrow(postnordata)){
+postnordata$fishID[i]<-strsplit(postnordata$file_name, "_")[[i]][1]
+postnordata$sex[i]<-strsplit(postnordata$file_name, "_")[[i]][3]
+}
+postnordata<-postnordata %>% filter(sex == "male")
+
+#########familiar preference (corner + interaction)
+postnordata<-postnordata%>% mutate(familiar_preference = (upper_familiar_corner_prop + lower_familiar_corner_prop + familiar_interaction_prop)/(upper_familiar_corner_prop + lower_familiar_corner_prop + familiar_interaction_prop + upper_novel_corner_prop + lower_novel_corner_prop + novel_interaction_prop))
+
+##########decision speed (latency to enter either corner)
+postnordata$latency_to_enter_either_corner<-NA
+i<-1
+for(i in 1:nrow(postnordata)){
+shortest<- min(c(postnordata$upper_familiar_corner_first_entry_time[i],postnordata$lower_familiar_corner_first_entry_time[i], postnordata$upper_novel_corner_first_entry_time[i], postnordata$lower_novel_corner_first_entry_time[i]), na.rm = TRUE)
+postnordata$latency_to_enter_either_corner[i]<-shortest}
+
+##########interaction latency (latency to enter either interaction)
+
+postnordata$latency_to_enter_either_interaction<-NA
+i<-1
+for(i in 1:nrow(postnordata)){
+shortest<- min(c(postnordata$familiar_interaction_first_entry_time[i], postnordata$novel_interaction_first_entry_time[i]), na.rm = TRUE)
+postnordata$latency_to_enter_either_interaction[i]<-shortest}
+
+
+#########first choice familiar or novel (corner)
+postnordata$first_choice<-NA
+i<-1
+for(i in 1:nrow(postnordata)){
+  if(is.na(postnordata$latency_to_enter_either_interaction[i]) == FALSE){
+    
+  if(is.na(postnordata$familiar_interaction_first_entry_time[i]) == FALSE){  
+  if(as.numeric(postnordata$latency_to_enter_either_interaction[i]) == as.numeric(postnordata$familiar_interaction_first_entry_time[i])){
+  postnordata$first_choice[i]<-"familiar"}}
+    
+  if(is.na(postnordata$novel_interaction_first_entry_time[i]) == FALSE){  
+  if(as.numeric(postnordata$latency_to_enter_either_interaction[i]) == as.numeric(postnordata$novel_interaction_first_entry_time[i])){
+  postnordata$first_choice[i]<-"novel"}}
+  }}
+
+#########eror correction speed
+postnordata$error_correction_speed<-NA
+i<-1
+for(i in 1:nrow(postnordata)){
+  if(is.na(postnordata$novel_interaction_first_entry_time[i]) == FALSE){
+  if(is.na(postnordata$familiar_interaction_first_entry_time[i]) == FALSE){
+  if(postnordata$novel_interaction_first_entry_time[i] < postnordata$familiar_interaction_first_entry_time[i]){
+  postnordata$error_correction_speed[i]<-(postnordata$familiar_interaction_first_entry_time[i] - postnordata$novel_interaction_first_entry_time[i])}}}}
+  
+########remove upper and lower corners for sum corners
+postnordata<-postnordata %>% mutate(sum_novel_prop = upper_novel_corner_prop + lower_novel_corner_prop+ novel_interaction_prop)
+postnordata<-postnordata %>% mutate(sum_familiar_prop = upper_familiar_corner_prop + lower_familiar_corner_prop +familiar_interaction_prop)
+postnordata<-postnordata %>% mutate(sum_novel_entries = upper_novel_corner_entries + lower_novel_corner_entries + novel_interaction_entries)
+postnordata<-postnordata %>% mutate(sum_familiar_entries = upper_familiar_corner_entries + lower_familiar_corner_entries + familiar_interaction_entries)
+
+  
+
+```
+#get variables lists (based off covariance matrices, removing >0.8 in either pre or post)
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+
+##########SOCA
+socavariableslist<-c("number_of_entries_opporutnity","number_of_entires_challenge","number_digging", "number_activity_female_barrier", "number_activity_at_resident_barrier" , "number_activity_at_neural_barrier", "number_reproductive_display" ,"number_lateral_display","number_border_conflict" ,"number_aggressive_behavior_by_resident", "aggression_index","prop_PVC","prop_female_barrier", "prop_resident_barrier","prop_resident_wall","prop_resident_corner","prop_camera_wall",  "prop_female_corner","prop_female_wall", "prop_female_space","prop_resident_space", "number_digging_opportunity","number_activity_female_barrier_opportunity", "number_activity_at_resident_barrier_opportunity","number_activity_at_neural_barrier_opportunity", "number_reproductive_display_opportunity", "number_lateral_display_opportunity", "number_border_conflict_opportunity","prop_PVC_opportunity" , "prop_female_barrier_opportunity", "prop_resident_barrier_opportunity","prop_resident_wall_opportunity", "prop_resident_corner_opportunity" ,"prop_camera_wall_opportunity", "prop_female_corner_opportunity" ,  "prop_female_wall_opportunity", "prop_female_space_opportunity", "prop_resident_space_opportunity", "number_digging_challenge" ,"number_activity_female_barrier_challenge", "number_activity_at_resident_barrier_challenge", "number_activity_at_neural_barrier_challenge", "number_reproductive_display_challenge", "number_lateral_display_challenge", "number_border_conflict_challenge" , "prop_PVC_challenge", "prop_female_barrier_challenge"  ,   "prop_resident_barrier_challenge", "prop_resident_wall_challenge", "prop_resident_corner_challenge", "prop_camera_wall_challenge", "prop_female_corner_challenge", "prop_female_wall_challenge", "prop_female_space_challenge", "prop_resident_space_challenge" , "prop_sum_resident", "prop_sum_female", "prop_sum_corner", "prop_sum_resident_opportunity" , "prop_sum_female_opportunity", "prop_sum_corner_opportunity", "prop_sum_resident_challenge", "prop_sum_female_challenge", "prop_sum_corner_challenge", "change_in_activity_at_female_barrier_opportunity_to_challenge", "change_in_reproductive_display_opportunity_to_challenge", "change_in_lateral_display_opportunity_to_challenge",  "change_in_prop_sum_female_opportunity_to_challenge", "change_in_prop_sum_resident_opportunity_to_challenge")
+
+
+##############SPA
+spavariableslist<-colnames(prespadata)
+drops<-c("file_name", "neutral_zone_seconds", "back_wall_seconds", "unrewarded_wall_seconds", "rewarded_corner_seconds","rewarded_platform_seconds", "rewarded_wall_seconds", "unrewarded_corner_seconds", "unrewarded_platform_seconds", "vid_length", "fishID", "sex", "first_choice", "error_correction_speed", "barrier_first_entry_time")
+#removing error correction speed because only a couple individuals have it
+spavariableslist<-spavariableslist[(spavariableslist %in% drops)== FALSE]
+
+#look for highly correlated varialbes in prespadata
+i<-1
+j<-1
+k<-1
+temp<-as.data.frame(vector(length = length(spavariableslist) * length(spavariableslist)))
+ for(i in 1:length(spavariableslist)){
+  for(j in 1:length(spavariableslist)){
+measure1_name<-as.character(spavariableslist[i])
+measure2_name<-as.character(spavariableslist[j])
+temp$measure1[k]<-measure1_name
+temp$measure2[k]<-measure2_name
+temptemp<-as.data.frame(vector(length = nrow(prespadata)))
+temptemp$measure1<-prespadata%>% select(measure1_name) %>% as.vector()
+temptemp$measure2<-prespadata%>% select(measure2_name) %>% as.vector()
+temptemp<-temptemp %>% select(c(measure1,measure2))
+temptemp<-as.matrix(temptemp)
+temptemp<-as.data.frame(temptemp)
+temptemp<-temptemp %>% filter(is.na(measure1) == FALSE & is.na(measure2) == FALSE)
+pearson<-cor(temptemp$measure1, temptemp$measure2,  method = "pearson")
+temp$abspearson[k]<-abs(pearson)
+k<-k+1
+  }}
+temp<-temp%>% select(c(measure1,measure2,abspearson))
+temp$abspearson<-as.numeric(temp$abspearson)
+temp<-temp%>%filter(abspearson > 0.8 & abspearson< 1)
+
+#now look for highly correlated variables in postspsadata
+i<-1
+j<-1
+k<-1
+temp<-as.data.frame(vector(length = length(spavariableslist) * length(spavariableslist)))
+ for(i in 1:length(spavariableslist)){
+  for(j in 1:length(spavariableslist)){
+measure1_name<-as.character(spavariableslist[i])
+measure2_name<-as.character(spavariableslist[j])
+temp$measure1[k]<-measure1_name
+temp$measure2[k]<-measure2_name
+temptemp<-as.data.frame(vector(length = nrow(postspadata)))
+temptemp$measure1<-postspadata%>% select(measure1_name) %>% as.vector()
+temptemp$measure2<-postspadata%>% select(measure2_name) %>% as.vector()
+temptemp<-temptemp %>% select(c(measure1,measure2))
+temptemp<-as.matrix(temptemp)
+temptemp<-as.data.frame(temptemp)
+temptemp<-temptemp %>% filter(is.na(measure1) == FALSE & is.na(measure2) == FALSE)
+pearson<-cor(temptemp$measure1, temptemp$measure2,  method = "pearson")
+temp$abspearson[k]<-abs(pearson)
+k<-k+1
+  }}
+temp<-temp%>% select(c(measure1,measure2,abspearson))
+temp$abspearson<-as.numeric(temp$abspearson)
+temp<-temp%>%filter(abspearson > 0.8 & abspearson< 1)
+
+#Variables to REMOVE after covariance matrix test:
+
+#PRE
+#back wall entries (using neutral wall entries)
+#reward platform prop (using reward preference)
+#unrewarded wall entries (using unrewarded corner entries)
+#rewarded wall entries (using rewarded wall prop)
+#rewarded platform first entry time (using rewarded corner first entry time)
+#rewarded platform entries (using rewarded corner entries)
+
+#POST
+#rewarded platform prop (using unrewarded corner first entry time)
+#unrewarded wall entries (using unrewarded corner entries)
+#back wall first entry time (using unrewarded platofrm first entry time)
+#unrewarded platform prop (using reward preference)
+#unrewarded platform first entry time (using unrewarded corner first entry time)
+#rewarded platform first entry time (using rewarded corner first entry time)
+#rewarded wall prop & rewarded wall entries (using rewarded corner entries)
+
+
+spacovmatrixlist<-c("back_wall_entries", "rewarded_platform_prop", "unrewarded_wall_entries", "rewarded_wall_entries", "rewarded_platform_first_entry_time", "rewarded_platform_entries", "back_wall_first_entry_time", "unrewarded_platform_prop", "unrewarded_platform_first_entry_time", "rewarded_wall_prop")
+spavariableslist<-spavariableslist[(spavariableslist %in% spacovmatrixlist)== FALSE]
+
+
+
+
+#################NOR
+norvariableslist<-colnames(prenordata)
+drops<-c("file_name", "vid_length", "fishID", "sex", "first_choice", "error_correction_speed", "novel_alley_seconds", "novel_interaction_seconds", "upper_novel_corner_seconds", "lower_novel_corner_seconds","familiar_alley_seconds", "familiar_interaction_seconds", "upper_familiar_corner_seconds", "lower_familiar_corner_seconds", "behind_barrier_seconds", "behind_barrier_prop", "behind_barrier_first_entry_time", "upper_novel_corner_prop", "lower_novel_corner_prop", "upper_familiar_corner_prop", "lower_familiar_corner_prop", "upper_familiar_corner_entries", "lower_familiar_corner_entries", "upper_novel_corner_entries", "lower_novel_corner_entries", "behind_barrier_entries", "upper_novel_corner_first_entry_time", "lower_novel_corner_first_entry_time", "upper_familiar_corner_first_entry_time", "lower_familiar_corner_first_entry_time")
+
+norvariableslist<-norvariableslist[(norvariableslist %in% drops)== FALSE]
+
+#look for highly correlated varialbes in prenordata
+i<-1
+j<-1
+k<-1
+temp<-as.data.frame(vector(length = length(norvariableslist) * length(norvariableslist)))
+ for(i in 1:length(norvariableslist)){
+  for(j in 1:length(norvariableslist)){
+measure1_name<-as.character(norvariableslist[i])
+measure2_name<-as.character(norvariableslist[j])
+temp$measure1[k]<-measure1_name
+temp$measure2[k]<-measure2_name
+temptemp<-as.data.frame(vector(length = nrow(prenordata)))
+temptemp$measure1<-prenordata%>% select(measure1_name) %>% as.vector()
+temptemp$measure2<-prenordata%>% select(measure2_name) %>% as.vector()
+temptemp<-temptemp %>% select(c(measure1,measure2))
+temptemp<-as.matrix(temptemp)
+temptemp<-as.data.frame(temptemp)
+temptemp<-temptemp %>% filter(is.na(measure1) == FALSE & is.na(measure2) == FALSE)
+pearson<-cor(temptemp$measure1, temptemp$measure2,  method = "pearson")
+temp$abspearson[k]<-abs(pearson)
+k<-k+1
+  }}
+temp<-temp%>% select(c(measure1,measure2,abspearson))
+temp$abspearson<-as.numeric(temp$abspearson)
+temp<-temp%>%filter(abspearson > 0.8 & abspearson< 1)
+
+#now look for highly correlated variables in postnordata
+i<-1
+j<-1
+k<-1
+temp<-as.data.frame(vector(length = length(norvariableslist) * length(norvariableslist)))
+ for(i in 1:length(norvariableslist)){
+  for(j in 1:length(norvariableslist)){
+measure1_name<-as.character(norvariableslist[i])
+measure2_name<-as.character(norvariableslist[j])
+temp$measure1[k]<-measure1_name
+temp$measure2[k]<-measure2_name
+temptemp<-as.data.frame(vector(length = nrow(postnordata)))
+temptemp$measure1<-postnordata%>% select(measure1_name) %>% as.vector()
+temptemp$measure2<-postnordata%>% select(measure2_name) %>% as.vector()
+temptemp<-temptemp %>% select(c(measure1,measure2))
+temptemp<-as.matrix(temptemp)
+temptemp<-as.data.frame(temptemp)
+temptemp<-temptemp %>% filter(is.na(measure1) == FALSE & is.na(measure2) == FALSE)
+pearson<-cor(temptemp$measure1, temptemp$measure2,  method = "pearson")
+temp$abspearson[k]<-abs(pearson)
+k<-k+1
+  }}
+temp<-temp%>% select(c(measure1,measure2,abspearson))
+temp$abspearson<-as.numeric(temp$abspearson)
+temp<-temp%>%filter(abspearson > 0.8 & abspearson< 1)
+
+
+#Variables to REMOVE after covariance matrix test:
+
+#PRE
+#novel alley entries (using familiar alley entries)
+#novel alley first entry time (using novel interaction first entry time)
+#sum novel prop and sum familiar prop(using familiar reference)
+#familiar alley first entry time (using familiar interaction first entry time)
+#novel interaction entries (using sum novel entries)
+#familiar interaction entries (using sum familiar entries)
+
+
+#POST
+#novel interaction entries and sum novel entries (using novel interaction prop)
+#novel alley entries (using familiar alley entries)
+#familiar interaction prop (using sum familiar entries)
+#latency to enter either corner (using latency to enter either interaction)
+
+
+norcovmatrixlist<-c("novel_alley_entries", "novel_alley_first_entry_time", "sum_novel_prop", "sum_familiar_prop", "familiar_alley_first_entry_time", "novel_interaction_entries", "familiar_interaction_entries", "sum_novel_entries", "familiar_interaction_prop", "latency_to_enter_either_corner")
+
+norvariableslist<-norvariableslist[(norvariableslist %in% norcovmatrixlist)== FALSE]
+
+
+
+##########shorter variables list for PCA
+preshortlist<-c("CORT_by_weight", "T_by_weight", "reward_preference", "rewarded_corner_first_entry_time", "neutral_zone_entries","familiar_preference","SOCA1prop_female_space_opportunity", "SOCA1prop_female_space_challenge", "SOCA1prop_resident_space_opportunity", "SOCA1prop_resident_space_challenge")
+
+postshortlist<-c("CORT_by_weight", "T_by_weight", "reward_preference", "rewarded_corner_first_entry_time", "neutral_zone_entries","familiar_preference","SOCA2prop_female_space_opportunity", "SOCA2prop_female_space_challenge", "SOCA2prop_resident_space_opportunity", "SOCA2prop_resident_space_challenge")
+
+######SHORT soca variables list
+presocavariableslistshort<- c("SOCA1prop_female_space_opportunity", "SOCA1prop_female_space_challenge", "SOCA1prop_resident_space_opportunity", "SOCA1prop_resident_space_challenge")
+
+postsocavariableslistshort<- c("SOCA2prop_female_space_opportunity", "SOCA2prop_female_space_challenge", "SOCA2prop_resident_space_opportunity", "SOCA2prop_resident_space_challenge")
+
+
+```
+
+#EQUALCOVS
+#get correlation matrices
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+
+#get pre cor matrix all fish
+temphorm<-full_join(horm, weight, by = "fishID")
+temphorm<-temphorm %>% mutate(CORT_by_weight = CORT/weight_start)
+temphorm<-temphorm %>% mutate(T_by_weight = T/weight_start)
+temphorm<-temphorm %>% filter(pre_or_post== "pre")
+allassaydata<-left_join(prespadata, prenordata, by = "fishID")
+ allassaydata<-left_join(allassaydata, kp,  by = "fishID")
+ allassaydata<-left_join(allassaydata, temphorm, by = "fishID")
+ allassaydata<-left_join(allassaydata, socadata, by = "fishID")
+ allassaydata<-allassaydata %>% filter(is.na(KPdid_fish_ascend_days_15_to_18)== FALSE)
+ #turn inf into NA
+ templist<- c(spavariableslist, norvariableslist, presocavariableslistshort, "CORT_by_weight", "T_by_weight")
+ templist2<-templist[templist!= "latency_to_enter_either_corner"]
+ #removing some variables because they lose a lot of the individuals (lots of NA's) or all the same value once filtered
+ templist2<-templist2[templist2!= "unrewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_corner_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "SOCA1prop_resident_space_opportunity"]
+ allassaydata<-allassaydata %>% select(templist2, "fishID")
+ allassaydata[allassaydata=="Inf"]<-NA
+ allassaydata[allassaydata=="NaN"]<-NA
+x<-allassaydata[ , -which(names(allassaydata) %in% c("fishID"))]
+x<-as.matrix(x)
+
+pre_all_cor<-x %>%
+  corrr::correlate() %>%
+  corrr::shave() %>%
+  corrr::stretch() %>%
+  na.omit()
+
+pre_all_cor_matrix<-x %>%
+  corrr::correlate()
+
+pre_all_cov_matrix<-as.data.frame(cov(x, use = "pairwise")) 
+
+
+pre_all_cov_df<-as.data.frame(cov(x, use = "pairwise")) 
+pre_all_cov<-data.frame(matrix(ncol = 3, nrow = (nrow(pre_all_cov_df) *nrow(pre_all_cov_df))))
+colnames(pre_all_cov)<-c("x", "y", "cov")
+pre_all_cov$y<-rep(colnames(pre_all_cov_df), ncol(pre_all_cov_df))
+xlist<-NA
+i<-1
+for (i in 1:ncol(pre_all_cov_df)){
+ temp<- rep(colnames(pre_all_cov_df[i]), ncol(pre_all_cov_df))
+ xlist<-append(temp, xlist)}
+xlist<-xlist[1:length(xlist)-1]
+pre_all_cov$x<-xlist
+k<-1
+for(k in 1:nrow(pre_all_cov)){
+  xval<-pre_all_cov$x[k]
+  yval<-pre_all_cov$y[k]  
+  temp<-pre_all_cov_df %>% select(xval)
+  pre_all_cov$cov[k]<-temp[yval, 1]}
+pre_all_cov<-pre_all_cov %>% filter(x != y)
+pre_all_cov<-pre_all_cov %>% arrange(cov)
+odd_indexes<-seq(1,(nrow(pre_all_cov)),2)
+pre_all_cov<-pre_all_cov[odd_indexes,]
+
+
+pre_all_cortable<-as.data.frame(correlation(as.data.frame(x),include_factors = TRUE, method = "Pearson"))
+pre_all_cortable<-pre_all_cortable %>% filter (p < 0.05)
+
+
+
+
+
+
+#get pre cor matrix ascenders only
+temphorm<-full_join(horm, weight, by = "fishID")
+temphorm<-temphorm %>% mutate(CORT_by_weight = CORT/weight_start)
+temphorm<-temphorm %>% mutate(T_by_weight = T/weight_start)
+temphorm<-temphorm %>% filter(pre_or_post== "pre")
+allassaydata<-left_join(prespadata, prenordata, by = "fishID")
+ allassaydata<-left_join(allassaydata, kp,  by = "fishID")
+ allassaydata<-left_join(allassaydata, temphorm, by = "fishID")
+ allassaydata<-left_join(allassaydata, socadata, by = "fishID")
+ allassaydata<-allassaydata %>% filter(KPdid_fish_ascend_days_15_to_18== 1)
+ #turn inf into NA
+ templist<- c(spavariableslist, norvariableslist, presocavariableslistshort, "CORT_by_weight", "T_by_weight")
+ templist2<-templist[templist!= "latency_to_enter_either_corner"]
+ #removing some variables because they lose a lot of the individuals (lots of NA's) or all the same value once filtered
+ templist2<-templist2[templist2!= "unrewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_corner_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "SOCA1prop_resident_space_opportunity"]
+ allassaydata<-allassaydata %>% select(templist2, "fishID")
+ allassaydata[allassaydata=="Inf"]<-NA
+ allassaydata[allassaydata=="NaN"]<-NA
+x<-allassaydata[ , -which(names(allassaydata) %in% c("fishID"))]
+x<-as.matrix(x)
+
+pre_ascenders_cor<-x %>%
+  corrr::correlate() %>%
+  corrr::shave() %>%
+  corrr::stretch() %>%
+  na.omit()
+
+pre_ascenders_cor_matrix<-x %>%
+  corrr::correlate()
+
+pre_ascenders_cov_matrix<-as.data.frame(cov(x, use = "pairwise")) 
+
+
+pre_ascenders_cov_df<-as.data.frame(cov(x, use = "pairwise")) 
+pre_ascenders_cov<-data.frame(matrix(ncol = 3, nrow = (nrow(pre_ascenders_cov_df) *nrow(pre_ascenders_cov_df))))
+colnames(pre_ascenders_cov)<-c("x", "y", "cov")
+pre_ascenders_cov$y<-rep(colnames(pre_ascenders_cov_df), ncol(pre_ascenders_cov_df))
+xlist<-NA
+i<-1
+for (i in 1:ncol(pre_ascenders_cov_df)){
+ temp<- rep(colnames(pre_ascenders_cov_df[i]), ncol(pre_ascenders_cov_df))
+ xlist<-append(temp, xlist)}
+xlist<-xlist[1:length(xlist)-1]
+pre_ascenders_cov$x<-xlist
+k<-1
+for(k in 1:nrow(pre_ascenders_cov)){
+  xval<-pre_ascenders_cov$x[k]
+  yval<-pre_ascenders_cov$y[k]  
+  temp<-pre_ascenders_cov_df %>% select(xval)
+  pre_ascenders_cov$cov[k]<-temp[yval, 1]}
+pre_ascenders_cov<-pre_ascenders_cov %>% filter(x != y)
+pre_ascenders_cov<-pre_ascenders_cov %>% arrange(cov)
+odd_indexes<-seq(1,(nrow(pre_ascenders_cov)),2)
+pre_ascenders_cov<-pre_ascenders_cov[odd_indexes,]
+
+
+
+
+
+
+
+#get pre cor matrix nonascenders only
+temphorm<-full_join(horm, weight, by = "fishID")
+temphorm<-temphorm %>% mutate(CORT_by_weight = CORT/weight_start)
+temphorm<-temphorm %>% mutate(T_by_weight = T/weight_start)
+temphorm<-temphorm %>% filter(pre_or_post== "pre")
+allassaydata<-left_join(prespadata, prenordata, by = "fishID")
+ allassaydata<-left_join(allassaydata, kp,  by = "fishID")
+ allassaydata<-left_join(allassaydata, temphorm, by = "fishID")
+ allassaydata<-left_join(allassaydata, socadata, by = "fishID")
+ allassaydata<-allassaydata %>% filter(KPdid_fish_ascend_days_15_to_18== 0)
+ #turn inf into NA
+ templist<- c(spavariableslist, norvariableslist, presocavariableslistshort, "CORT_by_weight", "T_by_weight")
+ templist2<-templist[templist!= "latency_to_enter_either_corner"]
+ #removing some variables because they lose a lot of the individuals (lots of NA's) or all the same value once filtered
+ templist2<-templist2[templist2!= "unrewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_corner_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "SOCA1prop_resident_space_opportunity"]
+ allassaydata<-allassaydata %>% select(templist2, "fishID")
+ allassaydata[allassaydata=="Inf"]<-NA
+ allassaydata[allassaydata=="NaN"]<-NA
+x<-allassaydata[ , -which(names(allassaydata) %in% c("fishID"))]
+x<-as.matrix(x)
+
+pre_nonascenders_cor<-x %>%
+  corrr::correlate() %>%
+  corrr::shave() %>%
+  corrr::stretch() %>%
+  na.omit()
+
+pre_nonascenders_cor_matrix<-x %>%
+  corrr::correlate()
+
+pre_nonascenders_cov_matrix<-as.data.frame(cov(x, use = "pairwise")) 
+
+
+pre_nonascenders_cov_df<-as.data.frame(cov(x, use = "pairwise")) 
+pre_nonascenders_cov<-data.frame(matrix(ncol = 3, nrow = (nrow(pre_nonascenders_cov_df) *nrow(pre_nonascenders_cov_df))))
+colnames(pre_nonascenders_cov)<-c("x", "y", "cov")
+pre_nonascenders_cov$y<-rep(colnames(pre_nonascenders_cov_df), ncol(pre_nonascenders_cov_df))
+xlist<-NA
+i<-1
+for (i in 1:ncol(pre_nonascenders_cov_df)){
+ temp<- rep(colnames(pre_nonascenders_cov_df[i]), ncol(pre_nonascenders_cov_df))
+ xlist<-append(temp, xlist)}
+xlist<-xlist[1:length(xlist)-1]
+pre_nonascenders_cov$x<-xlist
+k<-1
+for(k in 1:nrow(pre_nonascenders_cov)){
+  xval<-pre_nonascenders_cov$x[k]
+  yval<-pre_nonascenders_cov$y[k]  
+  temp<-pre_nonascenders_cov_df %>% select(xval)
+  pre_nonascenders_cov$cov[k]<-temp[yval, 1]}
+pre_nonascenders_cov<-pre_nonascenders_cov %>% filter(x != y)
+pre_nonascenders_cov<-pre_nonascenders_cov %>% arrange(cov)
+odd_indexes<-seq(1,(nrow(pre_nonascenders_cov)),2)
+pre_nonascenders_cov<-pre_nonascenders_cov[odd_indexes,]
+
+
+
+
+
+#get post cor matrix all fish
+temphorm<-full_join(horm, weight, by = "fishID")
+temphorm<-temphorm %>% mutate(CORT_by_weight = CORT/weight_start)
+temphorm<-temphorm %>% mutate(T_by_weight = T/weight_start)
+temphorm<-temphorm %>% filter(pre_or_post== "post")
+allassaydata<-left_join(postspadata, postnordata, by = "fishID")
+ allassaydata<-left_join(allassaydata, kp,  by = "fishID")
+ allassaydata<-left_join(allassaydata, temphorm, by = "fishID")
+ allassaydata<-left_join(allassaydata, socadata, by = "fishID")
+ allassaydata<-allassaydata %>% filter(is.na(KPdid_fish_ascend_days_15_to_18)== FALSE)
+ #turn inf into NA
+ templist<- c(spavariableslist, norvariableslist, postsocavariableslistshort, "CORT_by_weight", "T_by_weight")
+ templist2<-templist[templist!= "latency_to_enter_either_corner"]
+ #removing some variables because they lose a lot of the individuals (lots of NA's) or all the same value once filtered
+ templist2<-templist2[templist2!= "unrewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_corner_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "SOCA2prop_resident_space_opportunity"]
+ allassaydata<-allassaydata %>% select(templist2, "fishID")
+ allassaydata[allassaydata=="Inf"]<-NA
+ allassaydata[allassaydata=="NaN"]<-NA
+x<-allassaydata[ , -which(names(allassaydata) %in% c("fishID"))]
+x<-as.matrix(x)
+
+post_all_cor<-x %>%
+  corrr::correlate() %>%
+  corrr::shave() %>%
+  corrr::stretch() %>%
+  na.omit()
+
+
+post_all_cor_matrix<-x %>%
+  corrr::correlate()
+
+post_all_cov_matrix<-as.data.frame(cov(x, use = "pairwise")) 
+
+
+post_all_cov_df<-as.data.frame(cov(x, use = "pairwise")) 
+post_all_cov<-data.frame(matrix(ncol = 3, nrow = (nrow(post_all_cov_df) *nrow(post_all_cov_df))))
+colnames(post_all_cov)<-c("x", "y", "cov")
+post_all_cov$y<-rep(colnames(post_all_cov_df), ncol(post_all_cov_df))
+xlist<-NA
+i<-1
+for (i in 1:ncol(post_all_cov_df)){
+ temp<- rep(colnames(post_all_cov_df[i]), ncol(post_all_cov_df))
+ xlist<-append(temp, xlist)}
+xlist<-xlist[1:length(xlist)-1]
+post_all_cov$x<-xlist
+k<-1
+for(k in 1:nrow(post_all_cov)){
+  xval<-post_all_cov$x[k]
+  yval<-post_all_cov$y[k]  
+  temp<-post_all_cov_df %>% select(xval)
+  post_all_cov$cov[k]<-temp[yval, 1]}
+post_all_cov<-post_all_cov %>% filter(x != y)
+post_all_cov<-post_all_cov %>% arrange(cov)
+odd_indexes<-seq(1,(nrow(post_all_cov)),2)
+post_all_cov<-post_all_cov[odd_indexes,]
+
+post_all_cortable<-as.data.frame(correlation(as.data.frame(x),include_factors = TRUE, method = "Pearson"))
+post_all_cortable<-post_all_cortable %>% filter (p < 0.05)
+
+
+
+
+
+#get post cor matrix ascenders only
+temphorm<-full_join(horm, weight, by = "fishID")
+temphorm<-temphorm %>% mutate(CORT_by_weight = CORT/weight_start)
+temphorm<-temphorm %>% mutate(T_by_weight = T/weight_start)
+temphorm<-temphorm %>% filter(pre_or_post== "post")
+allassaydata<-left_join(postspadata, postnordata, by = "fishID")
+ allassaydata<-left_join(allassaydata, kp,  by = "fishID")
+ allassaydata<-left_join(allassaydata, temphorm, by = "fishID")
+ allassaydata<-left_join(allassaydata, socadata, by = "fishID")
+ allassaydata<-allassaydata %>% filter(KPdid_fish_ascend_days_15_to_18== 1)
+ #turn inf into NA
+ templist<- c(spavariableslist, norvariableslist, postsocavariableslistshort, "CORT_by_weight", "T_by_weight")
+ templist2<-templist[templist!= "latency_to_enter_either_corner"]
+ #removing some variables because they lose a lot of the individuals (lots of NA's) or all the same value once filtered
+ templist2<-templist2[templist2!= "unrewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_corner_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "SOCA2prop_resident_space_opportunity"]
+ allassaydata<-allassaydata %>% select(templist2, "fishID")
+ allassaydata[allassaydata=="Inf"]<-NA
+ allassaydata[allassaydata=="NaN"]<-NA
+x<-allassaydata[ , -which(names(allassaydata) %in% c("fishID"))]
+x<-as.matrix(x)
+
+post_ascenders_cor<-x %>%
+  corrr::correlate() %>%
+  corrr::shave() %>%
+  corrr::stretch() %>%
+  na.omit()
+
+post_ascenders_cor_matrix<-x %>%
+  corrr::correlate()
+
+
+post_ascenders_cov_matrix<-as.data.frame(cov(x, use = "pairwise")) 
+
+
+post_ascenders_cov_df<-as.data.frame(cov(x, use = "pairwise")) 
+post_ascenders_cov<-data.frame(matrix(ncol = 3, nrow = (nrow(post_ascenders_cov_df) *nrow(post_ascenders_cov_df))))
+colnames(post_ascenders_cov)<-c("x", "y", "cov")
+post_ascenders_cov$y<-rep(colnames(post_ascenders_cov_df), ncol(post_ascenders_cov_df))
+xlist<-NA
+i<-1
+for (i in 1:ncol(post_ascenders_cov_df)){
+ temp<- rep(colnames(post_ascenders_cov_df[i]), ncol(post_ascenders_cov_df))
+ xlist<-append(temp, xlist)}
+xlist<-xlist[1:length(xlist)-1]
+post_ascenders_cov$x<-xlist
+k<-1
+for(k in 1:nrow(post_ascenders_cov)){
+  xval<-post_ascenders_cov$x[k]
+  yval<-post_ascenders_cov$y[k]  
+  temp<-post_ascenders_cov_df %>% select(xval)
+  post_ascenders_cov$cov[k]<-temp[yval, 1]}
+post_ascenders_cov<-post_ascenders_cov %>% filter(x != y)
+post_ascenders_cov<-post_ascenders_cov %>% arrange(cov)
+odd_indexes<-seq(1,(nrow(post_ascenders_cov)),2)
+post_ascenders_cov<-post_ascenders_cov[odd_indexes,]
+
+post_ascenders_cortable<-as.data.frame(correlation(as.data.frame(x),include_factors = TRUE, method = "Pearson"))
+post_ascenders_cortable<-post_ascenders_cortable %>% filter (p < 0.05)
+
+
+
+
+
+#get post cor matrix nonascenders only
+temphorm<-full_join(horm, weight, by = "fishID")
+temphorm<-temphorm %>% mutate(CORT_by_weight = CORT/weight_start)
+temphorm<-temphorm %>% mutate(T_by_weight = T/weight_start)
+temphorm<-temphorm %>% filter(pre_or_post== "post")
+allassaydata<-left_join(postspadata, postnordata, by = "fishID")
+ allassaydata<-left_join(allassaydata, kp,  by = "fishID")
+ allassaydata<-left_join(allassaydata, temphorm, by = "fishID")
+ allassaydata<-left_join(allassaydata, socadata, by = "fishID")
+ allassaydata<-allassaydata %>% filter(KPdid_fish_ascend_days_15_to_18== 0)
+ #turn inf into NA
+ templist<- c(spavariableslist, norvariableslist, postsocavariableslistshort, "CORT_by_weight", "T_by_weight")
+ templist2<-templist[templist!= "latency_to_enter_either_corner"]
+ #removing some variables because they lose a lot of the individuals (lots of NA's) or all the same value once filtered
+ templist2<-templist2[templist2!= "unrewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_corner_first_entry_time"]
+ templist2<-templist2[templist2!= "rewarded_wall_first_entry_time"]
+ templist2<-templist2[templist2!= "SOCA2prop_resident_space_opportunity"]
+ allassaydata<-allassaydata %>% select(templist2, "fishID")
+ allassaydata[allassaydata=="Inf"]<-NA
+ allassaydata[allassaydata=="NaN"]<-NA
+x<-allassaydata[ , -which(names(allassaydata) %in% c("fishID"))]
+x<-as.matrix(x)
+
+post_nonascenders_cor<-x %>%
+  corrr::correlate() %>%
+  corrr::shave() %>%
+  corrr::stretch() %>%
+  na.omit()
+
+post_nonascenders_cor_matrix<-x %>%
+  corrr::correlate()
+
+
+post_nonascenders_cov_matrix<-as.data.frame(cov(x, use = "pairwise")) 
+
+
+post_nonascenders_cov_df<-as.data.frame(cov(x, use = "pairwise")) 
+post_nonascenders_cov<-data.frame(matrix(ncol = 3, nrow = (nrow(post_nonascenders_cov_df) *nrow(post_nonascenders_cov_df))))
+colnames(post_nonascenders_cov)<-c("x", "y", "cov")
+post_nonascenders_cov$y<-rep(colnames(post_nonascenders_cov_df), ncol(post_nonascenders_cov_df))
+xlist<-NA
+i<-1
+for (i in 1:ncol(post_nonascenders_cov_df)){
+ temp<- rep(colnames(post_nonascenders_cov_df[i]), ncol(post_nonascenders_cov_df))
+ xlist<-append(temp, xlist)}
+xlist<-xlist[1:length(xlist)-1]
+post_nonascenders_cov$x<-xlist
+k<-1
+for(k in 1:nrow(post_nonascenders_cov)){
+  xval<-post_nonascenders_cov$x[k]
+  yval<-post_nonascenders_cov$y[k]  
+  temp<-post_nonascenders_cov_df %>% select(xval)
+  post_nonascenders_cov$cov[k]<-temp[yval, 1]}
+post_nonascenders_cov<-post_nonascenders_cov %>% filter(x != y)
+post_nonascenders_cov<-post_nonascenders_cov %>% arrange(cov)
+odd_indexes<-seq(1,(nrow(post_nonascenders_cov)),2)
+post_nonascenders_cov<-post_nonascenders_cov[odd_indexes,]
+
+post_nonascenders_cortable<-as.data.frame(correlation(as.data.frame(x),include_factors = TRUE, method = "Pearson"))
+post_nonascenders_cortable<-post_nonascenders_cortable %>% filter (p < 0.05)
+
+```
+#is there a strengthening, weakening, or maintenance of overall correlational structure pre to post?
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+#pre all/ascend/nonascend  number of fish = 24,9,15
+#post all/ascend/nonascend number of fish = 25,10,15
+
+a<-cbind.data.frame(treatment = rep("pre", 
+                                 nrow(pre_all_cov)), 
+                    pre_all_cov)
+b<-cbind.data.frame(treatment = rep("post", 
+                                 nrow(post_all_cov)), 
+                    post_all_cov)
+all_cov<-rbind.data.frame(a, b)
+
+a<-cbind.data.frame(treatment = rep("pre", 
+                                 nrow(pre_all_cor)), 
+                    pre_all_cor)
+b<-cbind.data.frame(treatment = rep("post", 
+                                 nrow(post_all_cor)), 
+                    post_all_cor)
+all_cor<-rbind.data.frame(a, b)
+
+
+temp1<-as.matrix(pre_all_cov_matrix)
+temp2<- as.matrix(post_all_cov_matrix) 
+
+#https://cran.r-project.org/web/packages/equalCovs/equalCovs.pdf
+#https://projecteuclid.org/download/pdfview_1/euclid.aos/1338515142
+
+equalcovsresult<-equalCovs(temp1,temp2,24,25)#second number returned is p value
+equalcovsresult_stat <-equalcovsresult[1]
+equalcovsresult_p <-equalcovsresult[2]
+
+ggplot(all_cov, aes(x=treatment, y=cov)) + 
+geom_violin(color = "gray60") + geom_boxplot(width=1) + theme_classic() + labs(x = "pre vs post perturbation ALL fish", y = "pearson covariance") +
+  theme(aspect.ratio = 3) + stat_n_text() + ggtitle (paste("equalcovs p = ", round(equalcovsresult_p, 8), "
+stat = ",round(equalcovsresult_stat, 8)))
+
+tempall_cov<-all_cov %>% filter(cov > -0.001)
+tempall_cov<-tempall_cov %>% filter(cov < 0.001)
+ggplot(tempall_cov, aes(x=treatment, y=cov)) + 
+geom_violin(color = "gray60") + geom_boxplot(width=1) + theme_classic() + labs(x = "pre vs post perturbation ALL fish", y = "pearson covariance") +
+  theme(aspect.ratio = 3) + stat_n_text() + ggtitle (paste("equalcovs p = ", round(equalcovsresult_p, 8), "
+stat = ",round(equalcovsresult_stat, 8)))
+
+
+ggplot(all_cor, aes(x=treatment, y=abs(r))) + 
+geom_violin(color = "gray60") + geom_boxplot(width = 0.3) + theme_classic() + labs(x = "pre vs post perturbation ALL fish", y = "pearson correlation coefficient") +
+  theme(aspect.ratio = 3) + stat_n_text() + ggtitle (paste("equalcovs p = ", round(equalcovsresult_p, 8), "
+stat = ",round(equalcovsresult_stat, 8)))
+
+
+```
+#is there a strengthening, weakening, or maintenance of overall correlational structure pre to post in the ascenders?
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+#pre all/ascend/nonascend  number of fish = 24,9,15
+#post all/ascend/nonascend number of fish = 25,10,15
+
+a<-cbind.data.frame(treatment = rep("pre", 
+                                 nrow(pre_ascenders_cov)), 
+                    pre_ascenders_cov)
+b<-cbind.data.frame(treatment = rep("post", 
+                                 nrow(post_ascenders_cov)), 
+                    post_ascenders_cov)
+ascenders_cov<-rbind.data.frame(a, b)
+
+a<-cbind.data.frame(treatment = rep("pre", 
+                                 nrow(pre_ascenders_cor)), 
+                    pre_ascenders_cor)
+b<-cbind.data.frame(treatment = rep("post", 
+                                 nrow(post_ascenders_cor)), 
+                    post_ascenders_cor)
+ascenders_cor<-rbind.data.frame(a, b)
+
+
+temp1<-as.matrix(pre_ascenders_cov_matrix)
+temp1<-na.omit(temp1)
+temp2<- as.matrix(post_ascenders_cov_matrix) 
+
+#https://cran.r-project.org/web/packages/equalCovs/equalCovs.pdf
+#https://projecteuclid.org/download/pdfview_1/euclid.aos/1338515142
+
+equalcovsresult<-equalCovs(temp1,temp2,9,10)#second number returned is p value
+equalcovsresult_stat <-equalcovsresult[1]
+equalcovsresult_p <-equalcovsresult[2]
+
+ggplot(ascenders_cov, aes(x=treatment, y=cov)) + 
+geom_violin(color = "gray60") + geom_boxplot(color = "turquoise4", width=1) + theme_classic() + labs(x = "pre vs post perturbation ascenders fish", y = "pearson covariance") +
+  theme(aspect.ratio = 3) + stat_n_text() + ggtitle (paste("equalcovs p = ", round(equalcovsresult_p, 8), "
+stat = ",round(equalcovsresult_stat, 8)))
+
+tempascenders_cov<-ascenders_cov %>% filter(cov > -0.001)
+tempascenders_cov<-tempascenders_cov %>% filter(cov < 0.001)
+ggplot(tempascenders_cov, aes(x=treatment, y=cov)) + 
+geom_violin(color = "gray60") + geom_boxplot(color = "turquoise4", width=1) + theme_classic() + labs(x = "pre vs post perturbation ascenders fish", y = "pearson covariance") +
+  theme(aspect.ratio = 3) + stat_n_text() + ggtitle (paste("equalcovs p = ", round(equalcovsresult_p, 8), "
+stat = ",round(equalcovsresult_stat, 8)))
+
+
+ggplot(ascenders_cor, aes(x=treatment, y=abs(r))) + 
+geom_violin(color = "gray60") + geom_boxplot(color = "turquoise4",width = 0.3) + theme_classic() + labs(x = "pre vs post perturbation ascenders fish", y = "pearson correlation coefficient") +
+  theme(aspect.ratio = 3) + stat_n_text() + ggtitle (paste("equalcovs p = ", round(equalcovsresult_p, 8), "
+stat = ",round(equalcovsresult_stat, 8)))
+
+
+
+
+
+```
+#is there a strengthening, weakening, or maintenance of overall correlational structure pre to post in the nonscenders?
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+a<-cbind.data.frame(treatment = rep("pre", 
+                                 nrow(pre_nonascenders_cov)), 
+                    pre_nonascenders_cov)
+b<-cbind.data.frame(treatment = rep("post", 
+                                 nrow(post_nonascenders_cov)), 
+                    post_nonascenders_cov)
+nonascenders_cov<-rbind.data.frame(a, b)
+
+a<-cbind.data.frame(treatment = rep("pre", 
+                                 nrow(pre_nonascenders_cor)), 
+                    pre_nonascenders_cor)
+b<-cbind.data.frame(treatment = rep("post", 
+                                 nrow(post_nonascenders_cor)), 
+                    post_nonascenders_cor)
+nonascenders_cor<-rbind.data.frame(a, b)
+
+
+temp1<-as.matrix(pre_nonascenders_cov_matrix)
+temp2<- as.matrix(post_nonascenders_cov_matrix) 
+
+#https://cran.r-project.org/web/packages/equalCovs/equalCovs.pdf
+#https://projecteuclid.org/download/pdfview_1/euclid.aos/1338515142
+
+equalcovsresult<-equalCovs(temp1,temp2,15,15)#second number returned is p value
+equalcovsresult_stat <-equalcovsresult[1]
+equalcovsresult_p <-equalcovsresult[2]
+
+ggplot(nonascenders_cov, aes(x=treatment, y=cov)) + 
+geom_violin(color = "gray60") + geom_boxplot(color = "maroon", width=1) + theme_classic() + labs(x = "pre vs post perturbation nonascenders fish", y = "pearson covariance") +
+  theme(aspect.ratio = 3) + stat_n_text() + ggtitle (paste("equalcovs p = ", round(equalcovsresult_p, 8), "
+stat = ",round(equalcovsresult_stat, 8)))
+
+tempnonascenders_cov<-nonascenders_cov %>% filter(cov > -0.001)
+tempnonascenders_cov<-tempnonascenders_cov %>% filter(cov < 0.001)
+ggplot(tempnonascenders_cov, aes(x=treatment, y=cov)) + 
+geom_violin(color = "gray60") + geom_boxplot(color = "maroon", width=1) + theme_classic() + labs(x = "pre vs post perturbation nonascenders fish", y = "pearson covariance") +
+  theme(aspect.ratio = 3) + stat_n_text() + ggtitle (paste("equalcovs p = ", round(equalcovsresult_p, 8), "
+stat = ",round(equalcovsresult_stat, 8)))
+
+
+
+ggplot(nonascenders_cor, aes(x=treatment, y=abs(r))) + 
+geom_violin(color = "gray60") + geom_boxplot(color = "maroon",width = 0.3) + theme_classic() + labs(x = "pre vs post perturbation nonascenders fish", y = "pearson correlation coefficient") +
+  theme(aspect.ratio = 3) + stat_n_text() + ggtitle (paste("equalcovs p = ", round(equalcovsresult_p, 8), "
+stat = ",round(equalcovsresult_stat, 8)))
+
+
+
+```
